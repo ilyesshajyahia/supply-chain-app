@@ -7,6 +7,11 @@ function getTransporter() {
   if (transporter) return transporter;
 
   if (!env.smtpUser || !env.smtpPass) {
+    // eslint-disable-next-line no-console
+    console.error("SMTP config missing", {
+      smtpUser: Boolean(env.smtpUser),
+      smtpPass: Boolean(env.smtpPass),
+    });
     throw new Error("SMTP_USER and SMTP_PASS must be set for email verification");
   }
 
