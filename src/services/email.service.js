@@ -1,21 +1,21 @@
 const env = require("../config/env");
 
-async function sendViaMailtrap({ to, subject, text, html }) {
-  if (!env.mailtrapApiKey) {
+async function sendViaResend({ to, subject, text, html }) {
+  if (!env.resendApiKey) {
     // eslint-disable-next-line no-console
-    console.error("MAILTRAP_API_KEY missing");
-    throw new Error("MAILTRAP_API_KEY must be set for email verification");
+    console.error("RESEND_API_KEY missing");
+    throw new Error("RESEND_API_KEY must be set for email verification");
   }
 
-  const response = await fetch("https://send.api.mailtrap.io/api/send", {
+  const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${env.mailtrapApiKey}`,
+      Authorization: `Bearer ${env.resendApiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: { email: env.emailFrom || "sandbox@mailtrap.io", name: "ChainTrace" },
-      to: [{ email: to }],
+      from: env.emailFrom || "onboarding@resend.dev",
+      to,
       subject,
       text,
       html,
@@ -25,8 +25,8 @@ async function sendViaMailtrap({ to, subject, text, html }) {
   if (!response.ok) {
     const body = await response.text();
     // eslint-disable-next-line no-console
-    console.error("Mailtrap error:", response.status, body);
-    throw new Error(`Mailtrap error ${response.status}`);
+    console.error("Resend error:", response.status, body);
+    throw new Error(`Resend error ${response.status}`);
   }
 }
 
@@ -36,7 +36,7 @@ async function sendVerificationEmail({
   fallbackUrl,
 }) {
   try {
-    await sendViaMailtrap({
+    await sendViaResend({
       to,
       subject: "Verify your ChainTrace account",
       text: `Please verify your email by opening this link: ${verificationUrl}\nIf it is not clickable, use this fallback link: ${fallbackUrl}`,
@@ -57,7 +57,7 @@ async function sendVerificationEmail({
 
 async function sendPasswordResetEmail({ to, resetUrl }) {
   try {
-    await sendViaMailtrap({
+    await sendViaResend({
       to,
       subject: "Reset your ChainTrace password",
       text: `Reset your password by opening this link: ${resetUrl}`,
