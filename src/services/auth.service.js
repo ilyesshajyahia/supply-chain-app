@@ -162,10 +162,24 @@ async function login({ email, password }) {
     throw new ApiError(401, "Invalid credentials");
   }
 
+  if (user.lockUntil && user.lockUntil > new Date()) {
+    throw new ApiError(429, "Account locked. Try again later.");
+  }
+
   const ok = await bcrypt.compare(String(password), user.passwordHash);
   if (!ok) {
+    user.loginAttempts = (user.loginAttempts || 0) + 1;
+    if (user.loginAttempts >= 5) {
+      user.lockUntil = new Date(Date.now() + 15 * 60 * 1000);
+      user.loginAttempts = 0;
+    }
+    await user.save();
     throw new ApiError(401, "Invalid credentials");
   }
+
+  user.loginAttempts = 0;
+  user.lockUntil = null;
+  await user.save();
 
   if (!user.emailVerified || !user.isActive) {
     if (!user.emailVerified) {

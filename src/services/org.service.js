@@ -1,5 +1,6 @@
 const User = require("../models/user.model");
 const ApiError = require("../utils/ApiError");
+const { logAuditEvent } = require("./audit.service");
 
 async function listOrgUsers(orgId) {
   return User.find({ orgId })
@@ -8,11 +9,19 @@ async function listOrgUsers(orgId) {
     .lean();
 }
 
-async function setUserActive({ orgId, userId, isActive }) {
+async function setUserActive({ orgId, userId, isActive, actorUser, req }) {
   const user = await User.findOne({ _id: userId, orgId });
   if (!user) throw new ApiError(404, "User not found in org");
   user.isActive = Boolean(isActive);
   await user.save();
+  await logAuditEvent({
+    orgId,
+    action: isActive ? "user_approved" : "user_rejected",
+    actorUser,
+    targetUser: user,
+    meta: { isActive: Boolean(isActive) },
+    req,
+  });
   return {
     id: String(user._id),
     name: user.name,
@@ -25,11 +34,19 @@ async function setUserActive({ orgId, userId, isActive }) {
   };
 }
 
-async function setUserOrgAdmin({ orgId, userId, isOrgAdmin }) {
+async function setUserOrgAdmin({ orgId, userId, isOrgAdmin, actorUser, req }) {
   const user = await User.findOne({ _id: userId, orgId });
   if (!user) throw new ApiError(404, "User not found in org");
   user.isOrgAdmin = Boolean(isOrgAdmin);
   await user.save();
+  await logAuditEvent({
+    orgId,
+    action: "user_admin_updated",
+    actorUser,
+    targetUser: user,
+    meta: { isOrgAdmin: Boolean(isOrgAdmin) },
+    req,
+  });
   return {
     id: String(user._id),
     name: user.name,

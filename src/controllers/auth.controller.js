@@ -35,6 +35,52 @@ const resetPassword = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
+const resetPasswordRedirect = asyncHandler(async (req, res) => {
+  const token = req.query.token;
+  if (!token) {
+    throw new ApiError(400, "token is required");
+  }
+
+  const base =
+    env.resetDeepLinkBaseUrl ||
+    env.resetBaseUrl ||
+    "chaintrace://reset-password";
+  const separator = base.includes("?") ? "&" : "?";
+  const deepLink = `${base}${separator}token=${encodeURIComponent(token)}`;
+
+  res.status(200).set("Content-Type", "text/html").send(`
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Reset Password</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 32px; background: #0a0f17; color: #f7f9fc; }
+          a { color: #4da3ff; }
+          .card { max-width: 520px; margin: 0 auto; background: #111827; padding: 24px; border-radius: 12px; }
+          .btn { display: inline-block; margin-top: 16px; padding: 12px 16px; background: #1e88e5; color: #fff; border-radius: 10px; text-decoration: none; }
+          .muted { color: #9ca3af; font-size: 14px; margin-top: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h2>Reset your password</h2>
+          <p>Tap below to open the ChainTrace app and set a new password.</p>
+          <a class="btn" href="${deepLink}">Open in app</a>
+          <p class="muted">If nothing happens, copy this link into your browser:</p>
+          <p class="muted">${deepLink}</p>
+        </div>
+        <script>
+          setTimeout(function () {
+            window.location.href = ${JSON.stringify(deepLink)};
+          }, 300);
+        </script>
+      </body>
+    </html>
+  `);
+});
+
 const refresh = asyncHandler(async (req, res) => {
   const authHeader = req.header("authorization") || req.header("Authorization");
   if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
@@ -69,6 +115,7 @@ module.exports = {
   resendVerification,
   requestPasswordReset,
   resetPassword,
+  resetPasswordRedirect,
   refresh,
   me,
 };

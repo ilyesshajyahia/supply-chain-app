@@ -11,6 +11,8 @@ const setUserActive = asyncHandler(async (req, res) => {
     orgId: req.user.orgId,
     userId: req.params.userId,
     isActive: req.body.isActive,
+    actorUser: req.user,
+    req,
   });
   res.json({ ok: true, data });
 });
@@ -20,6 +22,8 @@ const setUserOrgAdmin = asyncHandler(async (req, res) => {
     orgId: req.user.orgId,
     userId: req.params.userId,
     isOrgAdmin: req.body.isOrgAdmin,
+    actorUser: req.user,
+    req,
   });
   res.json({ ok: true, data });
 });
