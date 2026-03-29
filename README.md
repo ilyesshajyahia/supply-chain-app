@@ -31,3 +31,7 @@ Replace with JWT/Auth provider in production.
 
 Your contracts authorize by `msg.sender`. Since backend sends transactions from one signer wallet,
 that signer must be granted the needed on-chain roles, or contract design must be adjusted for relaying/delegation.
+
+## CI
+
+Backend GitHub Actions workflow file: `.github/workflows/backend-ci.yml`.
