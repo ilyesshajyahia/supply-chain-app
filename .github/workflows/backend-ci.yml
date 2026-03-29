@@ -1,6 +1,7 @@
 name: Backend CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
@@ -19,7 +20,9 @@ on:
 jobs:
   backend-ci:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     env:
+      NODE_ENV: test
       MONGO_URI: mongodb://localhost:27017/chaintrace_ci
       RPC_URL: https://example-rpc.local
       SIGNER_PRIVATE_KEY: 0x1111111111111111111111111111111111111111111111111111111111111111
@@ -41,5 +44,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Basic backend sanity check
+      - name: Load express app
         run: node -e "require('./src/app'); console.log('Backend app loaded')"
