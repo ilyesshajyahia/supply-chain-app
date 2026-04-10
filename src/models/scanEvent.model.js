@@ -12,6 +12,7 @@ const scanEventSchema = new mongoose.Schema(
   {
     productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", default: null, index: true },
     qrId: { type: String, required: true, index: true },
+    scannedIdentifier: { type: String, default: null, index: true },
     scanType: { type: String, enum: ["public", "internal"], required: true },
     scannedByUserId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     location: { type: pointSchema, required: true },

@@ -12,6 +12,11 @@ const chatMessageSchema = new mongoose.Schema(
       required: true,
     },
     text: { type: String, required: true, trim: true, maxlength: 1000 },
+    seenByUserIds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+      default: [],
+      index: true,
+    },
   },
   { timestamps: true, collection: "chat_messages" }
 );

@@ -18,7 +18,9 @@ const finalizeSale = asyncHandler(async (req, res) => {
 });
 
 const history = asyncHandler(async (req, res) => {
-  const data = await productService.getProductHistoryByQrId(req.params.qrId);
+  const data = await productService.getProductHistoryByQrId(
+    req.params.identifier
+  );
   if (!data) {
     throw new ApiError(404, "Product not found");
   }

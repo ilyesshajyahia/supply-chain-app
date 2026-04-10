@@ -2,8 +2,8 @@ const asyncHandler = require("../utils/asyncHandler");
 const chatService = require("../services/chat.service");
 
 const listMessages = asyncHandler(async (req, res) => {
-  const data = await chatService.listMessages({
-    orgId: req.user.orgId,
+  const data = await chatService.listMessagesForUser({
+    user: req.user,
     qrId: req.query.qrId,
     limit: req.query.limit,
   });

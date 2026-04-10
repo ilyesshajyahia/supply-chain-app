@@ -3,8 +3,13 @@ const mongoose = require("mongoose");
 const productSchema = new mongoose.Schema(
   {
     qrId: { type: String, required: true, unique: true, index: true },
+    serialNumber: { type: String, default: null, unique: true, sparse: true, index: true },
     orgId: { type: String, required: true, index: true },
     name: { type: String, required: true },
+    brand: { type: String, default: null, trim: true },
+    category: { type: String, default: null, trim: true },
+    color: { type: String, default: null, trim: true },
+    description: { type: String, default: null, trim: true },
     productIdOnChain: { type: String, required: true },
     status: {
       type: String,

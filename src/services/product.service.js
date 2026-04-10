@@ -15,6 +15,29 @@ function locationText(longitude, latitude) {
   return `${latitude},${longitude}`;
 }
 
+function normalizeIdentifier(value) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function normalizeOptionalText(value, max = 256) {
+  const text = String(value || "").trim();
+  if (!text) return null;
+  return text.length > max ? text.slice(0, max) : text;
+}
+
+async function findProductByIdentifier(identifier, session = null) {
+  const normalized = normalizeIdentifier(identifier);
+  if (!normalized) return null;
+  const query = {
+    $or: [{ qrId: normalized }, { serialNumber: normalized }],
+  };
+  if (session) {
+    return Product.findOne(query).session(session);
+  }
+  return Product.findOne(query);
+}
+
 async function ensureZone({ user, longitude, latitude, session }) {
   const allowed = await isInAuthorizedZone({
     orgId: user.orgId,
@@ -30,6 +53,11 @@ async function ensureZone({ user, longitude, latitude, session }) {
 
 async function registerProduct({ user, payload }) {
   const { qrId, productIdOnChain, name, longitude, latitude } = payload;
+  const serialNumber = normalizeIdentifier(payload.serialNumber);
+  const brand = normalizeOptionalText(payload.brand, 120);
+  const category = normalizeOptionalText(payload.category, 120);
+  const color = normalizeOptionalText(payload.color, 80);
+  const description = normalizeOptionalText(payload.description, 1000);
   if (!qrId || !productIdOnChain || !name) {
     throw new ApiError(400, "qrId, productIdOnChain, and name are required");
   }
@@ -47,6 +75,14 @@ async function registerProduct({ user, payload }) {
       if (existing) {
         throw new ApiError(409, "Product with this qrId already exists");
       }
+      if (serialNumber) {
+        const serialExists = await Product.findOne({ serialNumber }).session(
+          session
+        );
+        if (serialExists) {
+          throw new ApiError(409, "Product with this serialNumber already exists");
+        }
+      }
 
       const chainResultProduct = await addProductOnChain(productIdOnChain, name);
       const chainResultEvent = await addLifecycleEventOnChain(
@@ -59,8 +95,13 @@ async function registerProduct({ user, payload }) {
         [
           {
             qrId,
+            serialNumber,
             orgId: user.orgId,
             name,
+            brand,
+            category,
+            color,
+            description,
             productIdOnChain: String(productIdOnChain),
             status: "at_manufacturer",
             currentOwnerRole: "manufacturer",
@@ -129,8 +170,11 @@ function transferRules(role) {
 }
 
 async function transferProduct({ user, payload }) {
-  const { qrId, longitude, latitude } = payload;
-  if (!qrId) throw new ApiError(400, "qrId is required");
+  const { longitude, latitude } = payload;
+  const identifier = normalizeIdentifier(
+    payload.qrId || payload.identifier || payload.serialNumber
+  );
+  if (!identifier) throw new ApiError(400, "qrId or serialNumber is required");
 
   const rules = transferRules(user.role);
   if (!rules) {
@@ -143,7 +187,7 @@ async function transferProduct({ user, payload }) {
     await session.withTransaction(async () => {
       await ensureZone({ user, longitude, latitude, session });
 
-      const product = await Product.findOne({ qrId }).session(session);
+      const product = await findProductByIdentifier(identifier, session);
       if (!product) throw new ApiError(404, "Product not found");
       if (product.isSold) throw new ApiError(409, "Product already sold and immutable");
       if (!rules.expectedCurrentOwner.includes(product.currentOwnerRole)) {
@@ -168,7 +212,7 @@ async function transferProduct({ user, payload }) {
         [
           {
             productId: product._id,
-            qrId,
+            qrId: product.qrId,
             action: rules.action,
             byUserId: user._id,
             byRole: user.role,
@@ -189,11 +233,12 @@ async function transferProduct({ user, payload }) {
         [
           {
             productId: product._id,
-            qrId,
+            qrId: product.qrId,
             scanType: "internal",
             scannedByUserId: user._id,
             location: toPoint(longitude, latitude),
             result: "verified",
+            scannedIdentifier: identifier,
             timestamp: new Date(),
           },
         ],
@@ -210,10 +255,14 @@ async function transferProduct({ user, payload }) {
 }
 
 async function finalizeSale({ user, payload }) {
-  const { qrId, longitude, latitude } = payload;
+  const { longitude, latitude } = payload;
+  const identifier = normalizeIdentifier(
+    payload.qrId || payload.identifier || payload.serialNumber
+  );
   if (user.role !== "reseller") {
     throw new ApiError(403, "Only reseller can finalize sale");
   }
+  if (!identifier) throw new ApiError(400, "qrId or serialNumber is required");
 
   const session = await mongoose.startSession();
   try {
@@ -221,7 +270,7 @@ async function finalizeSale({ user, payload }) {
     await session.withTransaction(async () => {
       await ensureZone({ user, longitude, latitude, session });
 
-      const product = await Product.findOne({ qrId }).session(session);
+      const product = await findProductByIdentifier(identifier, session);
       if (!product) throw new ApiError(404, "Product not found");
       if (product.isSold) throw new ApiError(409, "Product already sold");
       if (product.currentOwnerRole !== "reseller") {
@@ -244,7 +293,7 @@ async function finalizeSale({ user, payload }) {
         [
           {
             productId: product._id,
-            qrId,
+            qrId: product.qrId,
             action: "sold",
             byUserId: user._id,
             byRole: user.role,
@@ -271,24 +320,32 @@ async function finalizeSale({ user, payload }) {
 }
 
 async function getProductHistoryByQrId(qrId) {
-  const product = await Product.findOne({ qrId }).lean();
+  const normalized = normalizeIdentifier(qrId);
+  const product = await findProductByIdentifier(normalized);
   if (!product) return null;
 
   const events = await ProductEvent.find({ productId: product._id })
     .sort({ timestamp: 1 })
     .lean();
 
-  return { product, events };
+  return { product: product.toObject ? product.toObject() : product, events };
 }
 
-async function registerPublicScan({ qrId, longitude, latitude }) {
-  const product = await Product.findOne({ qrId });
+async function registerPublicScan({ qrId, serialNumber, identifier, longitude, latitude }) {
+  const resolvedIdentifier = normalizeIdentifier(identifier || qrId || serialNumber);
+  if (!resolvedIdentifier) {
+    throw new ApiError(400, "identifier (qrId or serialNumber) is required");
+  }
+
+  const product = await findProductByIdentifier(resolvedIdentifier);
   const now = new Date();
+  const canonicalQr = product ? product.qrId : resolvedIdentifier;
 
   if (!product) {
     await ScanEvent.create({
       productId: null,
-      qrId,
+      qrId: canonicalQr,
+      scannedIdentifier: resolvedIdentifier,
       scanType: "public",
       scannedByUserId: null,
       location: toPoint(longitude, latitude),
@@ -314,7 +371,8 @@ async function registerPublicScan({ qrId, longitude, latitude }) {
 
   const scanEvent = await ScanEvent.create({
     productId: product._id,
-    qrId,
+    qrId: canonicalQr,
+    scannedIdentifier: resolvedIdentifier,
     scanType: "public",
     scannedByUserId: null,
     location: toPoint(longitude, latitude),
@@ -327,7 +385,8 @@ async function registerPublicScan({ qrId, longitude, latitude }) {
       { productId: product._id, reason: "duplicate_scan_after_sold", isOpen: true },
       {
         $setOnInsert: {
-          qrId,
+          qrId: canonicalQr,
+          scannedIdentifier: resolvedIdentifier,
           productId: product._id,
           reason: "duplicate_scan_after_sold",
           severity: "high",

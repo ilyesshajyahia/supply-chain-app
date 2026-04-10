@@ -8,8 +8,9 @@ const publicScan = asyncHandler(async (req, res) => {
 });
 
 const publicScanHistory = asyncHandler(async (req, res) => {
-  const scans = await scanService.getPublicScansByQrId(req.params.qrId);
-  res.json({ ok: true, data: { qrId: req.params.qrId, scans } });
+  const identifier = req.params.identifier;
+  const scans = await scanService.getPublicScansByQrId(identifier);
+  res.json({ ok: true, data: { identifier, scans } });
 });
 
 module.exports = { publicScan, publicScanHistory };
