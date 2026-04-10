@@ -1,4 +1,5 @@
 const User = require("../models/user.model");
+const ProductEvent = require("../models/productEvent.model");
 const ApiError = require("../utils/ApiError");
 const { logAuditEvent } = require("./audit.service");
 
@@ -59,4 +60,81 @@ async function setUserOrgAdmin({ orgId, userId, isOrgAdmin, actorUser, req }) {
   };
 }
 
-module.exports = { listOrgUsers, setUserActive, setUserOrgAdmin };
+async function getGasMetrics({ orgId, days = 30 }) {
+  const rangeDays = Number(days);
+  const since = Number.isFinite(rangeDays) && rangeDays > 0
+    ? new Date(Date.now() - rangeDays * 24 * 60 * 60 * 1000)
+    : null;
+
+  const pipeline = [
+    {
+      $lookup: {
+        from: "products",
+        localField: "productId",
+        foreignField: "_id",
+        as: "product",
+      },
+    },
+    { $unwind: "$product" },
+    {
+      $match: {
+        "product.orgId": orgId,
+        txHash: { $ne: null },
+      },
+    },
+    ...(since ? [{ $match: { timestamp: { $gte: since } } }] : []),
+    {
+      $project: {
+        action: 1,
+        gasUsed: {
+          $toDouble: {
+            $ifNull: ["$meta.gas.gasUsed", "$meta.lifecycleGas.gasUsed", "0"],
+          },
+        },
+        costEth: {
+          $toDouble: {
+            $ifNull: ["$meta.gas.costEth", "$meta.lifecycleGas.costEth", "0"],
+          },
+        },
+      },
+    },
+    {
+      $group: {
+        _id: "$action",
+        txCount: { $sum: 1 },
+        avgGasUsed: { $avg: "$gasUsed" },
+        avgCostEth: { $avg: "$costEth" },
+        totalCostEth: { $sum: "$costEth" },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ];
+
+  const rows = await ProductEvent.aggregate(pipeline);
+  const byAction = rows.map((row) => ({
+    action: row._id,
+    txCount: row.txCount,
+    avgGasUsed: Math.round(row.avgGasUsed || 0),
+    avgCostEth: Number((row.avgCostEth || 0).toFixed(8)),
+    totalCostEth: Number((row.totalCostEth || 0).toFixed(8)),
+  }));
+
+  const totals = byAction.reduce(
+    (acc, item) => ({
+      txCount: acc.txCount + item.txCount,
+      totalCostEth: acc.totalCostEth + item.totalCostEth,
+    }),
+    { txCount: 0, totalCostEth: 0 }
+  );
+
+  return {
+    periodDays: since ? rangeDays : null,
+    byAction,
+    totals: {
+      txCount: totals.txCount,
+      totalCostEth: Number(totals.totalCostEth.toFixed(8)),
+    },
+  };
+}
+
+module.exports = { listOrgUsers, setUserActive, setUserOrgAdmin, getGasMetrics };

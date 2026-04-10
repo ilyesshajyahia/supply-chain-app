@@ -28,4 +28,13 @@ const setUserOrgAdmin = asyncHandler(async (req, res) => {
   res.json({ ok: true, data });
 });
 
-module.exports = { listUsers, setUserActive, setUserOrgAdmin };
+const gasMetrics = asyncHandler(async (req, res) => {
+  const days = req.query.days;
+  const data = await orgService.getGasMetrics({
+    orgId: req.user.orgId,
+    days,
+  });
+  res.json({ ok: true, data });
+});
+
+module.exports = { listUsers, setUserActive, setUserOrgAdmin, gasMetrics };

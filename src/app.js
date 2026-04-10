@@ -10,6 +10,7 @@ const productRoute = require("./routes/product.route");
 const scanRoute = require("./routes/scan.route");
 const zoneRoute = require("./routes/zone.route");
 const orgRoute = require("./routes/org.route");
+const chatRoute = require("./routes/chat.route");
 const publicRoute = require("./routes/public.route");
 const { notFound, errorHandler } = require("./middlewares/error.middleware");
 
@@ -28,6 +29,7 @@ app.use("/api/v1/products", productRoute);
 app.use("/api/v1/scans", scanRoute);
 app.use("/api/v1/zones", zoneRoute);
 app.use("/api/v1/org", orgRoute);
+app.use("/api/v1/chat", chatRoute);
 app.use("/public", publicRoute);
 
 app.get("/", (_req, res) => {

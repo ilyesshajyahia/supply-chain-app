@@ -6,6 +6,7 @@ const { requireOrgAdmin } = require("../middlewares/orgAdmin.middleware");
 const router = express.Router();
 
 router.get("/users", requireAuth, requireOrgAdmin, controller.listUsers);
+router.get("/metrics/gas", requireAuth, requireOrgAdmin, controller.gasMetrics);
 router.patch("/users/:userId/active", requireAuth, requireOrgAdmin, controller.setUserActive);
 router.patch("/users/:userId/admin", requireAuth, requireOrgAdmin, controller.setUserOrgAdmin);
 

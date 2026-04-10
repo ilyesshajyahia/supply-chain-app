@@ -35,3 +35,16 @@ that signer must be granted the needed on-chain roles, or contract design must b
 ## CI
 
 Backend GitHub Actions workflow file: `.github/workflows/backend-ci.yml`.
+
+## Gas metrics (backend ready)
+
+On-chain product lifecycle writes now store gas metrics inside event metadata:
+- `gasUsed`
+- `gasPriceWei`
+- `costWei`
+- `costEth`
+
+Admin endpoint for aggregation is available at:
+- `GET /api/v1/org/metrics/gas?days=30`
+
+This is ready to be surfaced later in the admin metrics UI cards/charts.

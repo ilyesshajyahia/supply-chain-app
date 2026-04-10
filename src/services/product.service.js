@@ -87,6 +87,8 @@ async function registerProduct({ user, payload }) {
             meta: {
               eventType: "Manufactured",
               registryTxHash: chainResultProduct.txHash,
+              registryGas: chainResultProduct.gas || null,
+              lifecycleGas: chainResultEvent.gas || null,
             },
           },
         ],
@@ -174,7 +176,10 @@ async function transferProduct({ user, payload }) {
             txHash: chainResult.txHash,
             blockNumber: chainResult.blockNumber,
             timestamp: new Date(),
-            meta: { eventType: rules.eventType },
+            meta: {
+              eventType: rules.eventType,
+              gas: chainResult.gas || null,
+            },
           },
         ],
         { session }
@@ -247,7 +252,10 @@ async function finalizeSale({ user, payload }) {
             txHash: chainResult.txHash,
             blockNumber: chainResult.blockNumber,
             timestamp: new Date(),
-            meta: { eventType: "Purchased" },
+            meta: {
+              eventType: "Purchased",
+              gas: chainResult.gas || null,
+            },
           },
         ],
         { session }
