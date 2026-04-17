@@ -151,6 +151,7 @@ function transferRules(role) {
       expectedCurrentOwner: ["manufacturer"],
       nextOwner: "distributor",
       nextStatus: "at_distributor",
+      eventTypeOnChain: "Retail",
       eventType: "Distributed",
       action: "transferred_to_distributor",
     };
@@ -161,6 +162,7 @@ function transferRules(role) {
       expectedCurrentOwner: ["distributor", "retailer"],
       nextOwner: "reseller",
       nextStatus: "at_reseller",
+      eventTypeOnChain: "Resold",
       eventType: "Resold",
       action: "transferred_to_reseller",
     };
@@ -199,7 +201,7 @@ async function transferProduct({ user, payload }) {
 
       const chainResult = await addLifecycleEventOnChain(
         product.productIdOnChain,
-        rules.eventType,
+        rules.eventTypeOnChain || rules.eventType,
         locationText(longitude, latitude)
       );
 
