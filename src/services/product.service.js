@@ -19,7 +19,7 @@ function locationText(longitude, latitude) {
 
 function normalizeIdentifier(value) {
   const text = String(value || "").trim();
-  return text || null;
+  return text || undefined;
 }
 
 function normalizeOptionalText(value, max = 256) {
