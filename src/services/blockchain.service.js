@@ -60,7 +60,7 @@ function gasMetricsFromReceipt(receipt) {
 async function addProductOnChain(productIdOnChain, name, options = {}) {
   const network = resolveNetworkLabel(options.network);
   const contracts = contractsByChain[network];
-  const tx = await contracts.productRegistry.addProduct(BigInt(productIdOnChain), name);
+  const tx = await contracts.productRegistry.addProduct(BigInt(productIdOnChain), name, { gasLimit: 500000 });
   const receipt = await tx.wait();
   return {
     ...chainMeta(network),
@@ -81,7 +81,8 @@ async function addLifecycleEventOnChain(
   const tx = await contracts.productLifecycle.addEvent(
     BigInt(productIdOnChain),
     eventType,
-    locationText
+    locationText,
+    { gasLimit: 500000 }
   );
   const receipt = await tx.wait();
   return {
